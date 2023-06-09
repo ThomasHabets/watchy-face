@@ -10,8 +10,28 @@ const uint8_t WEATHER_ICON_HEIGHT = 32;
 constexpr int errmsg_len = 32;
 RTC_DATA_ATTR char errmsg[errmsg_len] = "Booted OK";
 
+// Watchy connectWiFi() doesn't support timeouts.
+bool connect_wifi(int ms)
+{
+    Serial.println("Connecting to wifi");
+    if (WL_CONNECT_FAILED == WiFi.begin()) {
+        Serial.println("wifi begin failed");
+        return false;
+    }
+    const int ret = WiFi.waitForConnectResult(ms);
+    if (WL_CONNECTED == ret) {
+        Serial.println("wifi connected");
+        return true;
+    }
+    Serial.println("wifi connection failed: " + String(ret));
+    WiFi.mode(WIFI_OFF);
+    btStop();
+    return false;
+}
+
 void Watchy7SEG::set_error(const char* msg)
 {
+    Serial.println(String("Face message: ") + msg);
     strlcpy(errmsg, msg, errmsg_len);
     drawWatchFace();
     display.display(true);
@@ -36,7 +56,7 @@ void Watchy7SEG::drawWatchFace()
 
     drawWeather();
     drawBattery();
-    bool connected = WiFi.status() == WL_CONNECTED;
+    const bool connected = WiFi.status() == WL_CONNECTED;
     // WIFI_CONFIGURED ? wifi : wifioff
     display.drawBitmap(120,
                        77,
@@ -205,11 +225,16 @@ void Watchy7SEG::handleButtonPress()
         return;
     }
     if (wakeupBit & DOWN_BTN_MASK) {
-        Serial.println("Button: Down");
         set_error("Updating...");
         vibMotor(150, 2);
 
-        connectWiFi();
+        // Connect to wifi. 5 second timeout.
+        if (!connect_wifi(5000)) {
+            set_error("wifi fail");
+            return;
+        }
+
+        // Send a packet.
         WiFiUDP udp;
         uint16_t local_port = 12345;
         if (!udp.begin(local_port)) {
@@ -231,11 +256,13 @@ void Watchy7SEG::handleButtonPress()
         }
         udp.flush();
         udp.stop();
+
+        // Get weather data. 3 second timeout.
+        Serial.println("Getting weather data.");
         getWeatherData();
         WiFi.mode(WIFI_OFF);
         vibMotor(150, 2);
-        set_error("Updated data.");
-        Serial.println("Updated data");
+        set_error("Update done");
         return;
     }
     Serial.println("Other button. Passing along.");
@@ -243,7 +270,7 @@ void Watchy7SEG::handleButtonPress()
 }
 void Watchy7SEG::drawWeather()
 {
-
+    // TODO: may block for 60s waiting for wifi.
     weatherData currentWeather = getWeatherData();
     if (!currentWeather.weatherConditionCode) {
         return;
