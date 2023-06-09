@@ -1,1 +1,3 @@
-To toggle between Dark Mode/Light Mode, change `#define DARKMODE true` in `Watchy_7_SEG.cpp`
+## Watchy 7SEG habets
+
+Modified version of the example 7SEG.

@@ -206,7 +206,7 @@ void Watchy7SEG::handleButtonPress()
     }
     if (wakeupBit & DOWN_BTN_MASK) {
         Serial.println("Button: Down");
-        set_error("Button down test");
+        set_error("Updating...");
         vibMotor(150, 2);
 
         connectWiFi();
@@ -231,12 +231,13 @@ void Watchy7SEG::handleButtonPress()
         }
         udp.flush();
         udp.stop();
-        // WiFi.mode(WIFI_OFF);
         getWeatherData();
+        WiFi.mode(WIFI_OFF);
         vibMotor(150, 2);
+        set_error("Updated data.");
+        Serial.println("Updated data");
         return;
     }
-
     Serial.println("Other button. Passing along.");
     Watchy::handleButtonPress();
 }
