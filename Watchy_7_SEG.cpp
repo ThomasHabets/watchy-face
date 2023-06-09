@@ -12,66 +12,75 @@ RTC_DATA_ATTR char errmsg[errmsg_len] = "Booted OK";
 
 void Watchy7SEG::set_error(const char* msg)
 {
-  strlcpy(errmsg, msg, errmsg_len);
-  drawWatchFace();
-  display.display(true);
+    strlcpy(errmsg, msg, errmsg_len);
+    drawWatchFace();
+    display.display(true);
 }
 
-void Watchy7SEG::drawWatchFace(){
+void Watchy7SEG::drawWatchFace()
+{
     if (!currentTime.Year) {
-    RTC.read(currentTime);
-  }
+        RTC.read(currentTime);
+    }
 
     display.fillScreen(DARKMODE ? GxEPD_BLACK : GxEPD_WHITE);
     display.setTextColor(DARKMODE ? GxEPD_WHITE : GxEPD_BLACK);
     drawTime();
     drawDate();
-    //drawSteps();
+    // drawSteps();
     if (!*errmsg) {
-      drawMTV();
+        drawMTV();
     } else {
-      drawErrorMessage();
+        drawErrorMessage();
     }
 
     drawWeather();
     drawBattery();
     bool connected = WiFi.status() == WL_CONNECTED;
-    //WIFI_CONFIGURED ? wifi : wifioff
-    display.drawBitmap(120, 77, connected ? wifi : wifioff, 26, 18, DARKMODE ? GxEPD_WHITE : GxEPD_BLACK);
-    if(BLE_CONFIGURED){
-        display.drawBitmap(100, 75, bluetooth, 13, 21, DARKMODE ? GxEPD_WHITE : GxEPD_BLACK);
+    // WIFI_CONFIGURED ? wifi : wifioff
+    display.drawBitmap(120,
+                       77,
+                       connected ? wifi : wifioff,
+                       26,
+                       18,
+                       DARKMODE ? GxEPD_WHITE : GxEPD_BLACK);
+    if (BLE_CONFIGURED) {
+        display.drawBitmap(
+            100, 75, bluetooth, 13, 21, DARKMODE ? GxEPD_WHITE : GxEPD_BLACK);
     }
 }
 
-void Watchy7SEG::drawTime(){
+void Watchy7SEG::drawTime()
+{
     display.setFont(&DSEG7_Classic_Bold_53);
-    display.setCursor(5, 53+5);
+    display.setCursor(5, 53 + 5);
     int displayHour;
-    if(HOUR_12_24==12){
-      displayHour = ((currentTime.Hour+11)%12)+1;
+    if (HOUR_12_24 == 12) {
+        displayHour = ((currentTime.Hour + 11) % 12) + 1;
     } else {
-      displayHour = currentTime.Hour;
+        displayHour = currentTime.Hour;
     }
-    if(displayHour < 10){
+    if (displayHour < 10) {
         display.print("0");
     }
     display.print(displayHour);
     display.print(":");
-    if(currentTime.Minute < 10){
+    if (currentTime.Minute < 10) {
         display.print("0");
     }
     display.println(currentTime.Minute);
 }
 
-void Watchy7SEG::drawDate(){
+void Watchy7SEG::drawDate()
+{
     display.setFont(&Seven_Segment10pt7b);
 
-    int16_t  x1, y1;
+    int16_t x1, y1;
     uint16_t w, h;
 
     String dayOfWeek = dayStr(currentTime.Wday);
     display.getTextBounds(dayOfWeek, 5, 85, &x1, &y1, &w, &h);
-    if(currentTime.Wday == 4){
+    if (currentTime.Wday == 4) {
         w = w - 5;
     }
     display.setCursor(85 - w, 85);
@@ -84,181 +93,207 @@ void Watchy7SEG::drawDate(){
 
     display.setFont(&DSEG7_Classic_Bold_25);
     display.setCursor(5, 120);
-    if(currentTime.Day < 10){
-    display.print("0");
+    if (currentTime.Day < 10) {
+        display.print("0");
     }
     display.println(currentTime.Day);
     display.setCursor(5, 150);
-    display.println(tmYearToCalendar(currentTime.Year));// offset from 1970, since year is stored in uint8_t
+    display.println(tmYearToCalendar(
+        currentTime.Year)); // offset from 1970, since year is stored in uint8_t
 }
 
-String double_string(int n) {
-  if (n < 10) { return String("0") + n; }
-  return String(n);
+String double_string(int n)
+{
+    if (n < 10) {
+        return String("0") + n;
+    }
+    return String(n);
 }
-void Watchy7SEG::print_time(int hour_ofs) {
-  int hour = currentTime.Hour + hour_ofs;
-  if (hour < 0) {
-    hour += 24;
-  }
-  display.print(double_string(hour));
-  display.print(":");
-  display.print(double_string(currentTime.Minute));
+void Watchy7SEG::print_time(int hour_ofs)
+{
+    int hour = currentTime.Hour + hour_ofs;
+    if (hour < 0) {
+        hour += 24;
+    }
+    display.print(double_string(hour));
+    display.print(":");
+    display.print(double_string(currentTime.Minute));
 }
-void Watchy7SEG::drawErrorMessage() {
-  display.setFont(&Seven_Segment10pt7b);
-  display.setCursor(0,175);
-  display.println(errmsg);
+void Watchy7SEG::drawErrorMessage()
+{
+    display.setFont(&Seven_Segment10pt7b);
+    display.setCursor(0, 175);
+    display.println(errmsg);
 }
-void Watchy7SEG::drawMTV() {
- // display.setFont(&DSEG7_Classic_Bold_25);
-  display.setFont(&Seven_Segment10pt7b);
+void Watchy7SEG::drawMTV()
+{
+    // display.setFont(&DSEG7_Classic_Bold_25);
+    display.setFont(&Seven_Segment10pt7b);
 
-  display.setCursor(0,175);
-  display.println("SEA");
-  display.setCursor(0, 195);
-  print_time(-8);
+    display.setCursor(0, 175);
+    display.println("SEA");
+    display.setCursor(0, 195);
+    print_time(-8);
 
-  display.setCursor(50, 175);
-  display.println("NYC");
-  display.setCursor(50, 195);
-  print_time(-5);
+    display.setCursor(50, 175);
+    display.println("NYC");
+    display.setCursor(50, 195);
+    print_time(-5);
 
-  display.setCursor(100, 175);
-  display.println("UTC");
-  display.setCursor(100, 195);
-  print_time(-1);
+    display.setCursor(100, 175);
+    display.println("UTC");
+    display.setCursor(100, 195);
+    print_time(-1);
 }
-void Watchy7SEG::drawSteps(){
+void Watchy7SEG::drawSteps()
+{
     // reset step counter at midnight
-    if (currentTime.Hour == 0 && currentTime.Minute == 0){
-      sensor.resetStepCounter();
+    if (currentTime.Hour == 0 && currentTime.Minute == 0) {
+        sensor.resetStepCounter();
     }
     uint32_t stepCount = sensor.getCounter();
     display.drawBitmap(10, 165, steps, 19, 23, DARKMODE ? GxEPD_WHITE : GxEPD_BLACK);
     display.setCursor(35, 190);
     display.println(stepCount);
 }
-void Watchy7SEG::drawBattery(){
+void Watchy7SEG::drawBattery()
+{
     display.drawBitmap(154, 73, battery, 37, 21, DARKMODE ? GxEPD_WHITE : GxEPD_BLACK);
-    display.fillRect(159, 78, 27, BATTERY_SEGMENT_HEIGHT, DARKMODE ? GxEPD_BLACK : GxEPD_WHITE);//clear battery segments
+    display.fillRect(159,
+                     78,
+                     27,
+                     BATTERY_SEGMENT_HEIGHT,
+                     DARKMODE ? GxEPD_BLACK : GxEPD_WHITE); // clear battery segments
     int8_t batteryLevel = 0;
     float VBAT = getBatteryVoltage();
-    if(VBAT > 4.1){
+    if (VBAT > 4.1) {
         batteryLevel = 3;
-    }
-    else if(VBAT > 3.95 && VBAT <= 4.1){
+    } else if (VBAT > 3.95 && VBAT <= 4.1) {
         batteryLevel = 2;
-    }
-    else if(VBAT > 3.80 && VBAT <= 3.95){
+    } else if (VBAT > 3.80 && VBAT <= 3.95) {
         batteryLevel = 1;
-    }
-    else if(VBAT <= 3.80){
+    } else if (VBAT <= 3.80) {
         batteryLevel = 0;
     }
 
-    for(int8_t batterySegments = 0; batterySegments < batteryLevel; batterySegments++){
-        display.fillRect(159 + (batterySegments * BATTERY_SEGMENT_SPACING), 78, BATTERY_SEGMENT_WIDTH, BATTERY_SEGMENT_HEIGHT, DARKMODE ? GxEPD_WHITE : GxEPD_BLACK);
+    for (int8_t batterySegments = 0; batterySegments < batteryLevel; batterySegments++) {
+        display.fillRect(159 + (batterySegments * BATTERY_SEGMENT_SPACING),
+                         78,
+                         BATTERY_SEGMENT_WIDTH,
+                         BATTERY_SEGMENT_HEIGHT,
+                         DARKMODE ? GxEPD_WHITE : GxEPD_BLACK);
     }
 }
 
-void Watchy7SEG::handleButtonPress(){
-  if (guiState != WATCHFACE_STATE) {
-    Serial.println("Not on watchface, ignoring button");
+void Watchy7SEG::handleButtonPress()
+{
+    if (guiState != WATCHFACE_STATE) {
+        Serial.println("Not on watchface, ignoring button");
+        Watchy::handleButtonPress();
+        return;
+    }
+    const uint64_t wakeupBit = esp_sleep_get_ext1_wakeup_status();
+    if (wakeupBit & BACK_BTN_MASK) {
+        Serial.println("Button: Back");
+        set_error("");
+        return;
+    }
+    if (wakeupBit & UP_BTN_MASK) {
+        Serial.println("Button: Up");
+        vibMotor(75, 4);
+        set_error("Button up test");
+        return;
+    }
+    if (wakeupBit & DOWN_BTN_MASK) {
+        Serial.println("Button: Down");
+        set_error("Button down test");
+        vibMotor(150, 2);
+
+        connectWiFi();
+        WiFiUDP udp;
+        uint16_t local_port = 12345;
+        if (!udp.begin(local_port)) {
+            set_error("UDP Begin");
+            return;
+        }
+        if (!udp.beginPacket("cement.retrofitta.se", 12312)) {
+            set_error("beginpacket");
+            return;
+        }
+        String msg = "hello world";
+        if (msg.length() != udp.write((const uint8_t*)msg.c_str(), msg.length())) {
+            set_error("short write");
+            return;
+        }
+        if (!udp.endPacket()) {
+            set_error("endpacket");
+            return;
+        }
+        udp.flush();
+        udp.stop();
+        // WiFi.mode(WIFI_OFF);
+        getWeatherData();
+        vibMotor(150, 2);
+        return;
+    }
+
+    Serial.println("Other button. Passing along.");
     Watchy::handleButtonPress();
-    return;
-  }
-  const uint64_t wakeupBit = esp_sleep_get_ext1_wakeup_status();
-  if (wakeupBit & BACK_BTN_MASK) {
-    Serial.println("Button: Back");
-    set_error("");
-    return;
-  }
-  if (wakeupBit & UP_BTN_MASK) {
-    Serial.println("Button: Up");
-    vibMotor(75,4);
-    set_error("Button up test");
-    return;
-  }
-  if (wakeupBit & DOWN_BTN_MASK) {
-    Serial.println("Button: Down");
-    set_error("Button down test");
-    vibMotor(150,2);
-    
-    connectWiFi();
-    WiFiUDP udp;
-    uint16_t local_port = 12345;
-    if (!udp.begin(local_port)) {
-      set_error("UDP Begin");
-      return;
-    }
-    if (!udp.beginPacket("cement.retrofitta.se", 12312)) {
-      set_error("beginpacket");
-      return;
-    }
-    String msg = "hello world";
-    if (msg.length() != udp.write((const uint8_t*)msg.c_str(), msg.length())) {
-      set_error("short write");
-      return;
-    }
-    if (!udp.endPacket()){
-      set_error("endpacket");
-      return;
-    }
-    udp.flush();
-    udp.stop();
-    //WiFi.mode(WIFI_OFF);
-    getWeatherData();
-    vibMotor(150,2);
-    return;
-  }
-
-  Serial.println("Other button. Passing along.");
-  Watchy::handleButtonPress();
 }
-void Watchy7SEG::drawWeather(){
+void Watchy7SEG::drawWeather()
+{
 
     weatherData currentWeather = getWeatherData();
     if (!currentWeather.weatherConditionCode) {
-      return;
+        return;
     }
 
     int8_t temperature = currentWeather.temperature;
     int16_t weatherConditionCode = currentWeather.weatherConditionCode;
 
     display.setFont(&DSEG7_Classic_Regular_39);
-    int16_t  x1, y1;
+    int16_t x1, y1;
     uint16_t w, h;
     display.getTextBounds(String(temperature), 0, 0, &x1, &y1, &w, &h);
-    if(159 - w - x1 > 87){
+    if (159 - w - x1 > 87) {
         display.setCursor(159 - w - x1, 150);
-    }else{
+    } else {
         display.setFont(&DSEG7_Classic_Bold_25);
         display.getTextBounds(String(temperature), 0, 0, &x1, &y1, &w, &h);
         display.setCursor(159 - w - x1, 136);
     }
     display.println(temperature);
-    display.drawBitmap(165, 110, currentWeather.isMetric ? celsius : fahrenheit, 26, 20, DARKMODE ? GxEPD_WHITE : GxEPD_BLACK);
+    display.drawBitmap(165,
+                       110,
+                       currentWeather.isMetric ? celsius : fahrenheit,
+                       26,
+                       20,
+                       DARKMODE ? GxEPD_WHITE : GxEPD_BLACK);
     const unsigned char* weatherIcon;
 
-    //https://openweathermap.org/weather-conditions
-    if(weatherConditionCode > 801){//Cloudy
-    weatherIcon = cloudy;
-    }else if(weatherConditionCode == 801){//Few Clouds
-    weatherIcon = cloudsun;
-    }else if(weatherConditionCode == 800){//Clear
-    weatherIcon = sunny;
-    }else if(weatherConditionCode >=700){//Atmosphere
-    weatherIcon = atmosphere;
-    }else if(weatherConditionCode >=600){//Snow
-    weatherIcon = snow;
-    }else if(weatherConditionCode >=500){//Rain
-    weatherIcon = rain;
-    }else if(weatherConditionCode >=300){//Drizzle
-    weatherIcon = drizzle;
-    }else if(weatherConditionCode >=200){//Thunderstorm
-    weatherIcon = thunderstorm;
-    }else
-    return;
-    display.drawBitmap(150, 163, weatherIcon, WEATHER_ICON_WIDTH, WEATHER_ICON_HEIGHT, DARKMODE ? GxEPD_WHITE : GxEPD_BLACK);
+    // https://openweathermap.org/weather-conditions
+    if (weatherConditionCode > 801) { // Cloudy
+        weatherIcon = cloudy;
+    } else if (weatherConditionCode == 801) { // Few Clouds
+        weatherIcon = cloudsun;
+    } else if (weatherConditionCode == 800) { // Clear
+        weatherIcon = sunny;
+    } else if (weatherConditionCode >= 700) { // Atmosphere
+        weatherIcon = atmosphere;
+    } else if (weatherConditionCode >= 600) { // Snow
+        weatherIcon = snow;
+    } else if (weatherConditionCode >= 500) { // Rain
+        weatherIcon = rain;
+    } else if (weatherConditionCode >= 300) { // Drizzle
+        weatherIcon = drizzle;
+    } else if (weatherConditionCode >= 200) { // Thunderstorm
+        weatherIcon = thunderstorm;
+    } else
+        return;
+    display.drawBitmap(150,
+                       163,
+                       weatherIcon,
+                       WEATHER_ICON_WIDTH,
+                       WEATHER_ICON_HEIGHT,
+                       DARKMODE ? GxEPD_WHITE : GxEPD_BLACK);
 }
