@@ -7,17 +7,37 @@ const uint8_t BATTERY_SEGMENT_HEIGHT = 11;
 const uint8_t BATTERY_SEGMENT_SPACING = 9;
 const uint8_t WEATHER_ICON_WIDTH = 48;
 const uint8_t WEATHER_ICON_HEIGHT = 32;
+constexpr int errmsg_len = 32;
+RTC_DATA_ATTR char errmsg[errmsg_len] = "Booted OK";
+
+void Watchy7SEG::set_error(const char* msg)
+{
+  strlcpy(errmsg, msg, errmsg_len);
+  drawWatchFace();
+  display.display(true);
+}
 
 void Watchy7SEG::drawWatchFace(){
+    if (!currentTime.Year) {
+    RTC.read(currentTime);
+  }
+
     display.fillScreen(DARKMODE ? GxEPD_BLACK : GxEPD_WHITE);
     display.setTextColor(DARKMODE ? GxEPD_WHITE : GxEPD_BLACK);
     drawTime();
     drawDate();
     //drawSteps();
-    drawMTV();
+    if (!*errmsg) {
+      drawMTV();
+    } else {
+      drawErrorMessage();
+    }
+
     drawWeather();
     drawBattery();
-    display.drawBitmap(120, 77, WIFI_CONFIGURED ? wifi : wifioff, 26, 18, DARKMODE ? GxEPD_WHITE : GxEPD_BLACK);
+    bool connected = WiFi.status() == WL_CONNECTED;
+    //WIFI_CONFIGURED ? wifi : wifioff
+    display.drawBitmap(120, 77, connected ? wifi : wifioff, 26, 18, DARKMODE ? GxEPD_WHITE : GxEPD_BLACK);
     if(BLE_CONFIGURED){
         display.drawBitmap(100, 75, bluetooth, 13, 21, DARKMODE ? GxEPD_WHITE : GxEPD_BLACK);
     }
@@ -85,12 +105,17 @@ void Watchy7SEG::print_time(int hour_ofs) {
   display.print(":");
   display.print(double_string(currentTime.Minute));
 }
+void Watchy7SEG::drawErrorMessage() {
+  display.setFont(&Seven_Segment10pt7b);
+  display.setCursor(0,175);
+  display.println(errmsg);
+}
 void Watchy7SEG::drawMTV() {
  // display.setFont(&DSEG7_Classic_Bold_25);
   display.setFont(&Seven_Segment10pt7b);
 
   display.setCursor(0,175);
-  display.println("MTV");
+  display.println("SEA");
   display.setCursor(0, 195);
   print_time(-8);
 
@@ -139,19 +164,64 @@ void Watchy7SEG::drawBattery(){
 
 void Watchy7SEG::handleButtonPress(){
   if (guiState != WATCHFACE_STATE) {
+    Serial.println("Not on watchface, ignoring button");
     Watchy::handleButtonPress();
     return;
   }
   const uint64_t wakeupBit = esp_sleep_get_ext1_wakeup_status();
-  if (wakeupBit & UP_BTN_MASK) {
-    vibMotor(75,4);
+  if (wakeupBit & BACK_BTN_MASK) {
+    Serial.println("Button: Back");
+    set_error("");
     return;
   }
+  if (wakeupBit & UP_BTN_MASK) {
+    Serial.println("Button: Up");
+    vibMotor(75,4);
+    set_error("Button up test");
+    return;
+  }
+  if (wakeupBit & DOWN_BTN_MASK) {
+    Serial.println("Button: Down");
+    set_error("Button down test");
+    vibMotor(150,2);
+    
+    connectWiFi();
+    WiFiUDP udp;
+    uint16_t local_port = 12345;
+    if (!udp.begin(local_port)) {
+      set_error("UDP Begin");
+      return;
+    }
+    if (!udp.beginPacket("cement.retrofitta.se", 12312)) {
+      set_error("beginpacket");
+      return;
+    }
+    String msg = "hello world";
+    if (msg.length() != udp.write((const uint8_t*)msg.c_str(), msg.length())) {
+      set_error("short write");
+      return;
+    }
+    if (!udp.endPacket()){
+      set_error("endpacket");
+      return;
+    }
+    udp.flush();
+    udp.stop();
+    //WiFi.mode(WIFI_OFF);
+    getWeatherData();
+    vibMotor(150,2);
+    return;
+  }
+
+  Serial.println("Other button. Passing along.");
   Watchy::handleButtonPress();
 }
 void Watchy7SEG::drawWeather(){
 
     weatherData currentWeather = getWeatherData();
+    if (!currentWeather.weatherConditionCode) {
+      return;
+    }
 
     int8_t temperature = currentWeather.temperature;
     int16_t weatherConditionCode = currentWeather.weatherConditionCode;

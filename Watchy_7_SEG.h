@@ -21,6 +21,11 @@ class Watchy7SEG : public Watchy{
         private:
         void print_time(int hour_ofs);
         void handleButtonPress() override;
+        private:
+        void drawErrorMessage();
+  void set_error(const char* msg);
+
+  //String error_message_;
 };
 
 #endif
