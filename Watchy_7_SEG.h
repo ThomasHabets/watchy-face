@@ -29,6 +29,7 @@ private:
 private:
     void drawErrorMessage();
     void set_error(const char* msg);
+  void do_update();
 
     // String error_message_;
 };

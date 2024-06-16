@@ -10,6 +10,11 @@ const uint8_t WEATHER_ICON_HEIGHT = 32;
 constexpr int errmsg_len = 32;
 RTC_DATA_ATTR char errmsg[errmsg_len] = "Booted OK";
 
+RTC_DATA_ATTR long main_utc_offset = 0;
+RTC_DATA_ATTR long sea_utc_offset = 0;
+RTC_DATA_ATTR long nyc_utc_offset = 0;
+extern RTC_DATA_ATTR long gmtOffset;
+
 // Watchy connectWiFi() doesn't support timeouts.
 bool connect_wifi(int ms)
 {
@@ -29,6 +34,92 @@ bool connect_wifi(int ms)
     return false;
 }
 
+void Watchy7SEG::do_update()
+{
+        set_error("Updating...");
+        vibMotor(150, 2);
+
+        // Connect to wifi. 5 second timeout.
+        if (!connect_wifi(5000)) {
+            set_error("wifi fail");
+            return;
+        }
+
+        // Send a packet.
+        WiFiUDP udp;
+        uint16_t local_port = 12345;
+        if (!udp.begin(local_port)) {
+            set_error("UDP Begin");
+            return;
+        }
+        if (!udp.beginPacket("cement.retrofitta.se", 12312)) {
+            set_error("beginpacket");
+            return;
+        }
+        String msg = "hello world";
+        if (msg.length() != udp.write((const uint8_t*)msg.c_str(), msg.length())) {
+            set_error("short write");
+            return;
+        }
+        if (!udp.endPacket()) {
+            set_error("endpacket");
+            return;
+        }
+        udp.flush();
+
+	// Receive reply.
+	int cb;
+	for (int c = 0; c < 100; c++) {
+	  delay(10);
+	  cb = udp.parsePacket();
+	  if (cb) {
+	    break;
+	  }
+	}
+	if (!cb) {
+	  Serial.println("Timeout getting UDP.");
+	} else {
+	  char buf[128];
+	  const int n = udp.read(buf, sizeof(buf));
+	  if (n >= 4) {
+	    Serial.print("Main UTC offset set: ");
+	    Serial.print(main_utc_offset, DEC);
+	    main_utc_offset = ntohl(*(uint32_t*)buf);
+	    Serial.print(" -> ");
+	    Serial.println(main_utc_offset, DEC);
+	  } else {
+	    Serial.println("UDP packet too short");
+	  }
+	  if (n >= 8) {
+	    Serial.print("SEA UTC offset set: ");
+	    Serial.print(sea_utc_offset, DEC);
+	    sea_utc_offset = ntohl(*((uint32_t*)buf + 1));
+	    Serial.print(" -> ");
+	    Serial.println(sea_utc_offset, DEC);
+	  }
+	  if (n >= 12) {
+	    Serial.print("NYC UTC offset set: ");
+	    Serial.print(nyc_utc_offset, DEC);
+	    nyc_utc_offset = ntohl(*((uint32_t*)buf + 2));
+	    Serial.print(" -> ");
+	    Serial.println(nyc_utc_offset, DEC);
+	  }
+	}
+	gmtOffset = main_utc_offset;
+	syncNTP();
+	    
+	// Shut down.
+        udp.stop();
+
+        // Get weather data. 3 second timeout.
+        Serial.println("Getting weather data.");
+        getWeatherData();
+	gmtOffset = main_utc_offset;
+        WiFi.mode(WIFI_OFF);
+        vibMotor(150, 2);
+        set_error("Update done");
+}
+
 void Watchy7SEG::set_error(const char* msg)
 {
     Serial.println(String("Face message: ") + msg);
@@ -39,6 +130,8 @@ void Watchy7SEG::set_error(const char* msg)
 
 void Watchy7SEG::drawWatchFace()
 {
+  gmtOffset = main_utc_offset;
+  
     if (!currentTime.Year) {
         RTC.read(currentTime);
     }
@@ -153,17 +246,17 @@ void Watchy7SEG::drawMTV()
     display.setCursor(0, 175);
     display.println("SEA");
     display.setCursor(0, 195);
-    print_time(-8);
+    print_time(sea_utc_offset / 3600);
 
     display.setCursor(50, 175);
     display.println("NYC");
     display.setCursor(50, 195);
-    print_time(-5);
+    print_time(nyc_utc_offset / 3600);
 
     display.setCursor(100, 175);
     display.println("UTC");
     display.setCursor(100, 195);
-    print_time(-1);
+    print_time(-main_utc_offset / 3600);
 }
 void Watchy7SEG::drawSteps()
 {
@@ -178,6 +271,11 @@ void Watchy7SEG::drawSteps()
 }
 void Watchy7SEG::drawBattery()
 {
+  //float blow = SRTC.getRTCBattery(true);
+  //float VBAT = getBatteryVoltage();
+  //float size = ((getBatteryVoltage() - blow) / (4.2 - blow)) + 0.34;
+     // size should now be a value between 0 (empty) and 1 (full).
+     //}
     display.drawBitmap(154, 73, battery, 37, 21, DARKMODE ? GxEPD_WHITE : GxEPD_BLACK);
     display.fillRect(159,
                      78,
@@ -225,44 +323,7 @@ void Watchy7SEG::handleButtonPress()
         return;
     }
     if (wakeupBit & DOWN_BTN_MASK) {
-        set_error("Updating...");
-        vibMotor(150, 2);
-
-        // Connect to wifi. 5 second timeout.
-        if (!connect_wifi(5000)) {
-            set_error("wifi fail");
-            return;
-        }
-
-        // Send a packet.
-        WiFiUDP udp;
-        uint16_t local_port = 12345;
-        if (!udp.begin(local_port)) {
-            set_error("UDP Begin");
-            return;
-        }
-        if (!udp.beginPacket("cement.retrofitta.se", 12312)) {
-            set_error("beginpacket");
-            return;
-        }
-        String msg = "hello world";
-        if (msg.length() != udp.write((const uint8_t*)msg.c_str(), msg.length())) {
-            set_error("short write");
-            return;
-        }
-        if (!udp.endPacket()) {
-            set_error("endpacket");
-            return;
-        }
-        udp.flush();
-        udp.stop();
-
-        // Get weather data. 3 second timeout.
-        Serial.println("Getting weather data.");
-        getWeatherData();
-        WiFi.mode(WIFI_OFF);
-        vibMotor(150, 2);
-        set_error("Update done");
+      do_update();
         return;
     }
     Serial.println("Other button. Passing along.");
@@ -272,8 +333,9 @@ void Watchy7SEG::drawWeather()
 {
     // TODO: may block for 60s waiting for wifi.
     weatherData currentWeather = getWeatherData();
+    gmtOffset = main_utc_offset;
     if (!currentWeather.weatherConditionCode) {
-        return;
+      return;
     }
 
     int8_t temperature = currentWeather.temperature;
