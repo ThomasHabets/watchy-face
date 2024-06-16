@@ -8,8 +8,8 @@
 #include <bma4.h>
 #include <bma423.h>
 #include <bma4_defs.h>
-#include <config.h>
 */
+/* #include <config.h> */
 #include "Watchy_7_SEG.h"
 #include "settings.h"
 

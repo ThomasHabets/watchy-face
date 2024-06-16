@@ -272,18 +272,36 @@ void Watchy7SEG::drawSteps()
 void Watchy7SEG::drawBattery()
 {
   //float blow = SRTC.getRTCBattery(true);
-  //float VBAT = getBatteryVoltage();
-  //float size = ((getBatteryVoltage() - blow) / (4.2 - blow)) + 0.34;
+  float blow = 3.8;
+  float VBAT = getBatteryVoltage();
+  float size = ((getBatteryVoltage() - blow) / (4.2 - blow)) + 0.34;
      // size should now be a value between 0 (empty) and 1 (full).
      //}
+  if (size < 0) {
+    size = 0.0;
+  }
+  if (size > 1) {
+    size = 1.0;
+  }
+  if (false) {
     display.drawBitmap(154, 73, battery, 37, 21, DARKMODE ? GxEPD_WHITE : GxEPD_BLACK);
+  }
     display.fillRect(159,
                      78,
                      27,
                      BATTERY_SEGMENT_HEIGHT,
                      DARKMODE ? GxEPD_BLACK : GxEPD_WHITE); // clear battery segments
     int8_t batteryLevel = 0;
-    float VBAT = getBatteryVoltage();
+    //float VBAT = getBatteryVoltage();
+    if (true) {
+      display.setCursor(150, 78);
+      display.print(int(100.0 * size));
+      display.println("%");
+      display.setCursor(150, 95);
+      display.print(VBAT);
+      display.print("V");
+      return;
+    }
     if (VBAT > 4.1) {
         batteryLevel = 3;
     } else if (VBAT > 3.95 && VBAT <= 4.1) {
