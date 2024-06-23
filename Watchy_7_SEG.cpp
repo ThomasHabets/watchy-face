@@ -113,7 +113,8 @@ void Watchy7SEG::do_update()
 
         // Get weather data. 3 second timeout.
         Serial.println("Getting weather data.");
-        getWeatherData();
+        //getWeatherData();
+	drawWeather();
 	gmtOffset = main_utc_offset;
         WiFi.mode(WIFI_OFF);
         vibMotor(150, 2);
@@ -294,6 +295,7 @@ void Watchy7SEG::drawBattery()
     int8_t batteryLevel = 0;
     //float VBAT = getBatteryVoltage();
     if (true) {
+      display.setFont(&Seven_Segment10pt7b);
       display.setCursor(150, 78);
       display.print(int(100.0 * size));
       display.println("%");
