@@ -273,11 +273,16 @@ void Watchy7SEG::drawSteps()
 void Watchy7SEG::drawBattery()
 {
   //float blow = SRTC.getRTCBattery(true);
+  const float VBAT = getBatteryVoltage();
+  /*
   float blow = 3.8;
-  float VBAT = getBatteryVoltage();
   float size = ((getBatteryVoltage() - blow) / (4.2 - blow)) + 0.34;
-     // size should now be a value between 0 (empty) and 1 (full).
-     //}
+  */
+  const float min_bat = 3.2;
+  const float max_bat = 4.2;
+  float size = (VBAT - min_bat) / (max_bat - min_bat); 
+  // size should now be a value between 0 (empty) and 1 (full).
+  //}
   if (size < 0) {
     size = 0.0;
   }
